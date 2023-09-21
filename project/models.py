@@ -48,13 +48,48 @@ class IfcTaskTime(IfcSchedulingTime, models.Model):
 
 class IfcProcess(models.Model):
     '''I need to create the object the higher objects as it will make
-        It will make it easier to copy the data model directly. I also need to 
+        It will make it easier to copy the data model directly. I also need to
         follow the assignment diagram n the Process object.
     '''
     LongDescription = models.TextField(blank=True, null=True)
+    PredecessorSucessor = models.ManyToManyField('self',
+                                            #related_name='%(app_label)s_%(class)s_m2m',
+                                            through='IfcRelSequence',
+                                            symmetrical=False
+                                            )
 
-    class Meta:
-        abstract = True
+
+class IfcRelSequence(models.Model):
+    class SequenceTypeEnum(models.TextChoices):
+        FINISH_FINISH = 'FF', gtl('Finish Finish')
+        FINISH_START = 'FS', gtl('Finish Start')
+        START_FINISH = 'SF', gtl('Start Finish')
+        START_START = 'SS', gtl('Start Start')
+        USERDEFINED = 'UD', gtl('User Defined')
+        NOTDEFINED = 'ND', gtl('Not Defined')
+    GlobalId = models.UUIDField(primary_key=True,
+                                default=uuid.uuid4,
+                                editable=True)
+    TimeLag = models.DurationField(blank=True, null=True)
+    SequenceType = models.CharField(max_length=2,
+                                    choices=SequenceTypeEnum.choices,
+                                    default=SequenceTypeEnum.FINISH_START)
+    UserDefinedSequenceType = models.CharField(max_length=255,
+                                               null=True, blank=True)
+    RelatingProcess = models.ForeignKey(IfcProcess,
+                                        on_delete=models.CASCADE,
+                                        related_name='RelatingProcess')
+    RelatedProcess = models.ForeignKey(IfcProcess,
+                                       on_delete=models.CASCADE,
+                                       related_name='RelatedProcess')
+
+    class RelTypeEnum(models.TextChoices):
+        PREDECESSOR = 'PD', gtl('Predecessor')
+        SUCCESSOR = 'SS', gtl('Successor')
+
+    RelType = models.CharField(max_length=11,
+                               choices=RelTypeEnum.choices,
+                               default=RelTypeEnum.SUCCESSOR)
 
 
 class IfcTask(IfcProcess):
@@ -102,28 +137,3 @@ class IfcTask(IfcProcess):
                                 choices=IfcTaskTypeEnum.choices,
                                 default=IfcTaskTypeEnum.CONSTRUCTION)
     TaskTime = models.OneToOneField(IfcTaskTime, on_delete=models.CASCADE)
-
-
-class IfcRelSequence(models.Model):
-    class SequenceTypeEnum(models.TextChoices):
-        FINISH_FINISH = 'FF', gtl('Finish Finish')
-        FINISH_START = 'FS', gtl('Finish Start')
-        START_FINISH = 'SF', gtl('Start Finish')
-        START_START = 'SS', gtl('Start Start')
-        USERDEFINED = 'UD', gtl('User Defined')
-        NOTDEFINED = 'ND', gtl('Not Defined')
-    GlobalId = models.UUIDField(primary_key=True,
-                                default=uuid.uuid4,
-                                editable=True)
-    RelatingProcess = models.ForeignKey(IfcTask,
-                                        related_name='RelatingProcess',
-                                        on_delete=models.CASCADE)
-    RelatedProcess = models.ForeignKey(IfcTask,
-                                       related_name='RelatedProcess',
-                                       on_delete=models.CASCADE)
-    TimeLag = models.DurationField(blank=True, null=True)
-    SequenceType = models.CharField(max_length=2,
-                                    choices=SequenceTypeEnum.choices,
-                                    default=SequenceTypeEnum.FINISH_START)
-    UserDefinedSequenceType = models.CharField(max_length=255,
-                                               null=True, blank=True)
